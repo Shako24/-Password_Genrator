@@ -35,8 +35,8 @@ Future<String> rsaOaepEncrypt(String plainText) async {
   // Convert String → bytes
   final data = Uint8List.fromList(utf8.encode(plainText));
 
-  // OAEP with SHA-256 for both hash & MGF1
-  final oaep = OAEPEncoding(RSAEngine(), SHA256Digest(), SHA256Digest(), null);
+  // OAEP with SHA-256 (pointycastle 3.6: 2-arg factory only)
+  final oaep = OAEPEncoding.withSHA256(RSAEngine(), null);
   oaep.init(true, PublicKeyParameter<RSAPublicKey>(rsaPub));
 
   final inputLen = data.length;
@@ -122,7 +122,7 @@ Future<Uint8List> rsaOaepDecrypt(Uint8List encrypted) async {
 
   final RSAPrivateKey? privateKey = await getPrivateKeyFromStorage();
 
-  final oaep = OAEPEncoding(RSAEngine(), SHA256Digest() as Uint8List?, SHA256Digest(), null);
+  final oaep = OAEPEncoding.withSHA256(RSAEngine(), null);
   oaep.init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey as PrivateKey)); // false = decrypt
 
   final inputLen = encrypted.length;

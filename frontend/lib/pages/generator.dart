@@ -1,13 +1,9 @@
-// import 'dart:html';
-
-// import 'dart:js';
-
-// import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:password_generator/widgets/Constants.dart';
 import '../apis/backend.dart';
-import '../widgets/widget_button.dart';
+import '../theme/colors.dart';
+import '../utils/generator.dart' as pg;
+import '../utils/strength.dart';
+import '../widgets/status_pill.dart';
 
 class Generator extends StatefulWidget {
   const Generator({super.key});
@@ -17,284 +13,189 @@ class Generator extends StatefulWidget {
 }
 
 class _GeneratorState extends State<Generator> {
-  // ignore: unused_field
-  String _response = "";
-  final _formKey = GlobalKey<FormState>();
+  double _length = 16;
+  bool _uppercase = true;
+  bool _numbers = true;
+  bool _symbols = true;
+  String _preview = '';
 
-  // Text Field Data
-  String _site = "";
-  String _username = "";
-  String _passwordLength = "";
-  final String _verificationPassword = "";
+  final _site = TextEditingController();
+  final _user = TextEditingController();
+  bool _saving = false;
 
-  // Decryption pass button show and hide functionality
-  bool showButton = false;
-  bool _isBottomSheetOpen = false;
-
-  // Dynamic storing for text field data
-  final TextEditingController _textController1 = TextEditingController();
-  final TextEditingController _textController2 = TextEditingController();
-  final TextEditingController _textController3 = TextEditingController();
-  final TextEditingController _textController4 = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    _regenerate();
+  }
 
   @override
   void dispose() {
-    // Clean up the controller when the widget is disposed.
-    _textController1.dispose();
-    _textController2.dispose();
-    _textController3.dispose();
-    _textController4.dispose();
+    _site.dispose();
+    _user.dispose();
     super.dispose();
   }
 
-  void _getEnteredText() {
+  void _regenerate() {
     setState(() {
-      _site = _textController1.text;
-      _username = _textController2.text;
-      _passwordLength = _textController3.text;
+      _preview = pg.PasswordGenerator.generate(
+        length: _length.round(),
+        uppercase: _uppercase,
+        numbers: _numbers,
+        symbols: _symbols,
+      );
     });
+  }
 
-    if (kDebugMode) {
-      print('$_site\n$_username\n$_passwordLength');
+  Future<void> _save() async {
+    if (_saving) return;
+    if (_site.text.trim().isEmpty || _user.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Site and username are required')),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final res = await Backend.savePassword(
+          _site.text.trim(), _user.text.trim(), _preview);
+      if (!mounted) return;
+      if (res.statusCode == 200) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Password saved')));
+      } else {
+        _showError('Save failed (${res.statusCode})');
+      }
+    } catch (e) {
+      if (mounted) _showError('$e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
-  void completeState(BuildContext context, String password) {
-    if (_isBottomSheetOpen) {
-      Navigator.pop(context);
-      _isBottomSheetOpen = false;
-    }
-
-    showModalBottomSheet(
+  void _showError(String msg) {
+    showDialog(
         context: context,
-        isScrollControlled: true,
-
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(30),
-          )
-        ),
-        builder: (context) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.4,
-          maxChildSize: 0.9,
-          minChildSize: 0.4,
-          builder: (context, scrollController) {
-            _isBottomSheetOpen = true;
-            return SingleChildScrollView(
-              child: SizedBox(
-                width: MediaQuery
-                    .of(context)
-                    .size
-                    .width,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 30.0, horizontal: 15.0),
-                  child: Column(
-                    children: <Widget>[
-                      TextField(
-                        controller: TextEditingController(text: _site),
-                        decoration: const InputDecoration(
-                            labelText: "Site/App"),
-                        enabled: false,
-                      ),
-                      TextField(
-                        controller: TextEditingController(text: _username),
-                        decoration: const InputDecoration(
-                            labelText: "Username"),
-                        enabled: false,
-                      ),
-                      TextField(
-                        controller: TextEditingController(text: password),
-                        decoration: const InputDecoration(
-                            labelText: "Password"),
-                        enabled: false,
-                      ),
-                      const SizedBox(height: 20,),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          CustomThemeButton(text: 'Try Again', onPressed: () {
-                            createPassword(context);
-                          }),
-                          CustomThemeButton(
-                              text: 'Save Password', onPressed: () => {}),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }
-        )
-    ).whenComplete(() {
-      _isBottomSheetOpen = false;
-    });
-  }
-
-  Future createPassword(BuildContext context) async {
-
-    _getEnteredText();
-    final res =
-        await Backend.generate_password(_site, _username, _passwordLength);
-
-    if (res.statusCode == 200) {
-      setState(() {
-        _response = 'POST request successful: ${res.body}';
-        // Navigator.push(
-        //     context,
-        //     MaterialPageRoute(
-        //         builder: (context) => Generator_Complete(message: res.body)));
-        completeState(context, res.body);
-      });
-    } else {
-      setState(() {
-        _response = 'Error: ${res.statusCode}';
-      });
-    }
-
-    if (kDebugMode) {
-      print(_response);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TColors.secondaryColor,
-      appBar: AppBar(
-        title: const Text('Password Generator'),
-        backgroundColor: TColors.secondaryColor,
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.5),
-                  spreadRadius: 5,
-                  blurRadius: 7,
-                  offset: const Offset(0, 3),
-                ),
+        builder: (_) => AlertDialog(
+              title: const Text('Error'),
+              content: Text(msg),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'))
               ],
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    const Text(
-                      'Please fill out the form below:',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _textController1,
-                      decoration: const InputDecoration(
-                        labelText: 'Site',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter a site';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _textController2,
-                      decoration: const InputDecoration(
-                        labelText: 'Username/Email',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter a username or email';
-                        }
-                        if (!value.contains('@') || !value.contains('.')) {
-                          return 'Please enter a valid email or username';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _textController3,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Password Length',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
+            ));
+  }
 
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter a Password Length';
-                        }
-                        if (int.parse(value) < 8 || int.parse(value) > 20) {
-                          return 'Password must be between 8 and 20 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 20,),
-                    Visibility(
-                      visible: showButton,
-                      child: TextFormField(
-                        controller: _textController4,
-                        decoration: const InputDecoration(
-                          labelText: 'Verification Password',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a verification Password';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Center(
-                      child: CustomThemeButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            createPassword(context);
-                          }
-                        },
-                        text: 'Generate Password',
-                      ),
-                    ),
-                  ],
-                ),
-            ),
-          ),
-        ),
-      ),
+  Widget _chip(String label, bool value, ValueChanged<bool> onChanged) {
+    return FilterChip(
+      label: Text(label),
+      selected: value,
+      onSelected: (v) {
+        onChanged(v);
+        _regenerate();
+      },
+      selectedColor: PGColors.accent,
+      backgroundColor: PGColors.chip,
+      showCheckmark: false,
     );
   }
-}
-
-// ignore: camel_case_types, must_be_immutable
-class Generator_Complete extends StatelessWidget {
-  String message;
-
-  Generator_Complete({super.key, required this.message});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Password Generator'),
-      ),
-      body: Center(
-        child: Text(message),
+    final strength = passwordStrength(_preview);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: ListView(
+        children: [
+          Text('Generator',
+              style: uiText(
+                  size: 28, weight: FontWeight.w700, color: PGColors.ink)),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: PGColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: PGColors.line),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        _preview,
+                        style: monoText(size: 18, color: PGColors.ink),
+                      ),
+                    ),
+                    IconButton(
+                        onPressed: _regenerate,
+                        icon: const Icon(Icons.refresh)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                StatusPill(strength: strength),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(children: [
+            Text('Length',
+                style: uiText(
+                    size: 14,
+                    weight: FontWeight.w600,
+                    color: PGColors.ink)),
+            const Spacer(),
+            Text('${_length.round()}',
+                style: monoText(size: 16, color: PGColors.ink)),
+          ]),
+          Slider(
+            value: _length,
+            min: 8,
+            max: 32,
+            divisions: 24,
+            activeColor: PGColors.ink,
+            onChanged: (v) => setState(() => _length = v),
+            onChangeEnd: (_) => _regenerate(),
+          ),
+          Wrap(spacing: 8, children: [
+            _chip('Uppercase', _uppercase, (v) => setState(() => _uppercase = v)),
+            _chip('Numbers', _numbers, (v) => setState(() => _numbers = v)),
+            _chip('Symbols', _symbols, (v) => setState(() => _symbols = v)),
+          ]),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _site,
+            decoration: const InputDecoration(labelText: 'Site or app'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _user,
+            decoration:
+                const InputDecoration(labelText: 'Username or email'),
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: PGColors.accent,
+              foregroundColor: PGColors.accentInk,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : Text('Save to vault',
+                    style: uiText(
+                        size: 16,
+                        weight: FontWeight.w600,
+                        color: PGColors.accentInk)),
+          ),
+        ],
       ),
     );
   }
