@@ -1,7 +1,9 @@
-import crypto from 'crypto';
 import fs from 'fs';
 import pkg from 'node-forge';
 const { pki, util } = pkg;
+
+const RSA_PRIVATE_KEY_B64 = process.env.RSA_PRIVATE_KEY;
+if (!RSA_PRIVATE_KEY_B64) throw new Error('RSA_PRIVATE_KEY environment variable is required');
 
 export function rsa_encrypt(text, publicKey) {
   const pubKey = pki.publicKeyFromPem(publicKey);
@@ -13,7 +15,7 @@ export function rsa_encrypt(text, publicKey) {
 }
 
 export function rsa_decrypt(text) {
-  const privateKeyPem = Buffer.from(process.env.RSA_PRIVATE_KEY, 'base64').toString('utf8');
+  const privateKeyPem = Buffer.from(RSA_PRIVATE_KEY_B64, 'base64').toString('utf8');
   const privKey = pki.privateKeyFromPem(privateKeyPem);
   const decrypted = privKey.decrypt(util.decode64(text), 'RSA-OAEP');
   return decrypted;
