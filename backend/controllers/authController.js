@@ -5,6 +5,9 @@ import pool from '../db/connection.js';
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is required');
 
+const RSA_PUBLIC_KEY = process.env.RSA_PUBLIC_KEY;
+if (!RSA_PUBLIC_KEY) throw new Error('RSA_PUBLIC_KEY environment variable is required');
+
 export const register = async (req, res) => {
   const { username, password, public_key } = req.body;
   try {
@@ -24,6 +27,7 @@ export const register = async (req, res) => {
       'INSERT INTO users (username, password, rsa_key_id) VALUES ($1, $2, $3) RETURNING id',
       [username, hashed, rsa_key_id]
     );
+    if (!result.rows[0]) throw new Error('User not found');
 
     const token = jwt.sign({ id: result.rows[0].id }, JWT_SECRET, { expiresIn: '1h' });
     res.status(201).json({ success: true, data: { token } });
@@ -46,7 +50,7 @@ export const login = async (req, res) => {
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '1h' });
 
     // Decode server RSA public key from env (stored as base64)
-    const server_public_key = Buffer.from(process.env.RSA_PUBLIC_KEY, 'base64').toString('utf8');
+    const server_public_key = Buffer.from(RSA_PUBLIC_KEY, 'base64').toString('utf8');
 
     res.json({ success: true, data: { token, server_public_key } });
   } catch (err) {
