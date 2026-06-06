@@ -1,12 +1,14 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import pool from '../db/connection.js';
+import generate_rsa_keys from '../utils/rsa_encryption.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('JWT_SECRET environment variable is required');
 
-const RSA_PUBLIC_KEY = process.env.RSA_PUBLIC_KEY;
-if (!RSA_PUBLIC_KEY) throw new Error('RSA_PUBLIC_KEY environment variable is required');
+if (!process.env.RSA_PUBLIC_KEY || !process.env.RSA_PRIVATE_KEY) {
+  generate_rsa_keys();
+}
 
 export const register = async (req, res) => {
   const { username, password, public_key } = req.body;
@@ -49,8 +51,8 @@ export const login = async (req, res) => {
 
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '1h' });
 
-    // Decode server RSA public key from env (stored as base64)
-    const server_public_key = Buffer.from(RSA_PUBLIC_KEY, 'base64').toString('utf8');
+    // Read from process.env so auto-generated keys are picked up
+    const server_public_key = Buffer.from(process.env.RSA_PUBLIC_KEY, 'base64').toString('utf8');
 
     res.json({ success: true, data: { token, server_public_key } });
   } catch (err) {
