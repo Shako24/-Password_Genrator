@@ -1,46 +1,34 @@
-
-
+import { randomInt } from 'crypto';
 
 export const generate_password = async (passwordLength) => {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  const numbers = '0123456789';
+  const symbols = '.,-*_&^$#!?';
 
-    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    const numbers = "0123456789";
-    const symbols = ".,-*_&^$#!?";
+  let password = '';
+  let count = 0;
 
-    let password = "";
-    let count = 0;
-    
-    while (password.length < passwordLength) {
-        let randCounter = count + (Math.floor(Math.random() * 10) % 7);
-        if (randCounter < 5) {
-            randCounter += 5;
-        }
-
-        for (let i = count; i < randCounter; i++) {
-            if (count < passwordLength) {
-                const key = Math.floor(Math.random() * 52);
-                password += letters[key];
-                count++;
-            }
-        }
-
-        if (count < passwordLength) {
-            const key = Math.floor(Math.random() * 11);
-            password += symbols[key % symbols.length];
-            count++;
-        }
-
-        randCounter = count + (Math.floor(Math.random() * 3) % 3);
-        for (let i = count; i < randCounter; i++) {
-            if (count < passwordLength) {
-                const key = Math.floor(Math.random() * 10);
-                password += numbers[key];
-                count++;
-            }
-        }
+  while (password.length < passwordLength) {
+    // Add 5-11 letters
+    const letterCount = randomInt(5, 12);
+    for (let i = 0; i < letterCount && count < passwordLength; i++) {
+      password += letters[randomInt(0, letters.length)];
+      count++;
     }
-    console.log('password: ', password);    
 
-    return password;
+    // Add 1 symbol
+    if (count < passwordLength) {
+      password += symbols[randomInt(0, symbols.length)];
+      count++;
+    }
 
-}
+    // Add 0-2 numbers
+    const numCount = randomInt(0, 3);
+    for (let i = 0; i < numCount && count < passwordLength; i++) {
+      password += numbers[randomInt(0, numbers.length)];
+      count++;
+    }
+  }
+
+  return password;
+};
